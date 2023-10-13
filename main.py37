@@ -1,0 +1,142 @@
+import cv2
+from frameStuffs import Frame
+from pynput.keyboard import Listener
+import numpy as np
+from win32api import mouse_event
+from win32con import MOUSEEVENTF_MOVE, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEEVENTF_MOVE, MOUSEEVENTF_ABSOLUTE
+import time
+from math import atan
+
+# a little countdown so you can run the code and open the game at the same time
+countdownStart = 3
+for i in range(countdownStart, 0, -1):
+    print("countdown:", i)
+    time.sleep(1)
+print('code starting')
+
+# allows the user to kill the code by clicking `q`
+running = True
+def on_press(key):
+    global running
+    try: running = (key.char != 'q')
+    except: pass
+keyboard_listener = Listener(on_press=on_press)
+keyboard_listener.start()
+
+
+# initalize the frame class to know what rectangle of the screen to screenshot
+frame = Frame(1, 2559, 1439, 1)
+# frame = Frame() # NOTE: this line of code will allow you to click where you want the screenshot to be at the beginning of the code
+
+# gets the location of the center of the frame
+centerX, centerY = ((2560) // 2), ((1440) // 2)
+# todo : make sure ^ this works
+
+while running:
+    # take a screenshot and copy it for drawing
+    const_frame = frame.grab_frame()
+    temp_frame = const_frame.copy()
+
+    # these are the colours of the item we're trying to click (the `image color range finder.py` code finds these from a .png of just the item (just finds the minimal and maximal color in an image in RGB values))
+    # BOX GAME
+    # lowerColor = np.array([23, 137, 255])
+    # upperColor = np.array([30, 212, 255])
+
+    # FLICKING GAME
+    # lowerColor = np.array([0, 203, 140])
+    # upperColor = np.array([0, 205, 245])
+
+    # BURST GAME
+    # lowerColor = np.array([11, 163, 255])
+    # upperColor = np.array([16, 183, 255])
+
+    # COMPETITIVE BURST GAME
+    # lowerColor = np.array([21, 202, 241])
+    # upperColor = np.array([24, 243, 255])
+
+    # GRAVITY DROP GAME
+    # lowerColor = np.array([22, 205, 238])
+    # upperColor = np.array([23, 241, 255])
+
+    # TILE FRENZY GAME
+    lowerColor = np.array([22, 140, 254])
+    upperColor = np.array([30, 214, 255])
+
+    # we convert to an hsv
+    hsv = cv2.cvtColor(temp_frame, cv2.COLOR_BGR2HSV)
+    # find the pixels in our photo that are in our color range
+    mask = cv2.inRange(hsv, lowerColor, upperColor)
+    # find all the 'contours' of only these selected pixels
+    contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    # sort the contours by size (largest to smallest)
+    contours = sorted(contours, key=cv2.contourArea, reverse=True)
+
+    # for debugging this will draw the contours on our temp_frame
+    # cv2.drawContours(temp_frame, contours, -1, (0, 255, 0), 3)
+
+    # we make a list of all the bounding rectangles for each of our contours (sorted by size)
+    rect_list = [cv2.boundingRect(contour) for contour in contours]
+
+    # and now we iterate through these rectangles (largest to smallest) for as many points we're expecting to fire at
+    # NOTE: sometimes we will detect more rectangles inside our other rectangles (causing repeat shots at one point). this is why we limit the `numberOfThingsToFireAt`    
+    
+    # this value should be changed depending on how many we're expecting to see, this is when there we're 30 balls on the screen at any point
+    numberOfThingsToFireAt = 3
+    for rect in rect_list[:numberOfThingsToFireAt]:
+        # rect is the rectangle of the item we're trying to shoot at
+
+        # we first calculate the center of the rect we're trying to shoot at
+        centerRectX, centerRectY = rect[0] + rect[2] // 2, rect[1] + rect[3] // 2
+
+        # we then need the distance from where we're aiming (the center of the screen) to what we're trying to shoot at
+        diffX, diffY = int(-(centerX - centerRectX)), int(-(centerY - centerRectY))
+        
+
+        r = 500 # the distance from our player to the wall the dots spawn at
+
+        # we then calculate the arclength based on the distance we must travel. The angle is `atan(diff / r)`, the arclength is thus `r * atan(diff / r)`
+
+        # this calculation is not perfectly accurate and depending on the game it does change, so these two scalers fine tune the amount we move
+        # usually our calculation moves us too far, so if we're overshooting increase the number, if we're undershooting decrease the number (1.5 is a good value for most games)
+        # NOTE: these values work for me but I believe they are system dependant so you may need to tweak these quite a bit
+        sx = 1.4
+        sy = 1.4
+        # sx = 1.32
+        # sy = 1.447
+
+        # note: for small `diff` we have `r * atan(diff / r) // s` to be approximately equal to `diff // s`.
+        # thus if all targets are close together the following approximation may be used for increased speed
+        # diffX = int(diffX// sx)
+        # diffY = int(diffY // sy) 
+
+        # otherwise we must use the more accurate calculation
+        diffX = int(r * atan(diffX / r) // sx)
+        diffY = int(r * atan(diffY / r) // sy) 
+
+        # we now click on the target. We move to the target at (diffX, diffY) [relative from our current mouse location], then put the left mouse button down and up
+        mouse_event(MOUSEEVENTF_MOVE | MOUSEEVENTF_LEFTDOWN | MOUSEEVENTF_LEFTUP, diffX, diffY, 0, 0) # the final two zeros are flags https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-mouse_event
+
+        # after we've moved and clicked on the item we cannot move back right away or the click will not register at (diffX, diffY) so we wait for a period of time
+        # the amount of time can be tweaked to increase speed
+        time.sleep(0.1) # works for box frenzy
+
+        # now that we've waited we move back to the center of the screen
+        # we have to do this as our calculations only work if our starting point is the center of the screen (where our r = 500 sphere touches the target wall)
+        mouse_event(MOUSEEVENTF_MOVE, -diffX, -diffY, 0, 0)
+
+        # for debugging sometimes we want to display where we're aiming, this draws the rectangle around and a circle at the point we're trying to aim
+        # cv2.circle(temp_frame, (centerRectX, centerRectY), 5, (0, 0, 255), 3)
+        # temp_frame = cv2.rectangle(temp_frame, rect, (0, 255, 0), 3)
+
+        # by clicking `q` we can kill the code at any point, this just makes sure we don't get stuck in our loop
+        if not running: break
+
+    # after firing at all of the points we return to the center of the screen and take another screenshot. If we do this too quickly the screenshot will not be accurate and we will detect "phantom points"
+    # so we wait some amount of time (this amount can be tweaked for increased speed)
+    time.sleep(0.1) # works for box frenzy
+
+    # for debugging this will display the image we processed and what we were aiming at (so long as you uncomment that code above)
+    # cv2.imshow("Debugging Image Window", temp_frame)
+    # cv2.waitKey(1000)
+    # running = False
+    
