@@ -25,12 +25,12 @@ keyboard_listener.start()
 
 
 # initalize the frame class to know what rectangle of the screen to screenshot
-frame = Frame(1, 2559, 1439, 1)
+# frame = Frame(248, 1940, 1215, 704)
 # frame = Frame() # NOTE: this line of code will allow you to click where you want the screenshot to be at the beginning of the code
+frame = Frame(310, 1767, 1193, 811)
 
 # gets the location of the center of the frame
-centerX, centerY = ((2560) // 2), ((1440) // 2)
-# todo : make sure ^ this works
+centerX, centerY = ((frame.right - frame.left) // 2), ((frame.bottom - frame.top) // 2)
 
 while running:
     # take a screenshot and copy it for drawing
@@ -58,21 +58,26 @@ while running:
     # lowerColor = np.array([22, 205, 238])
     # upperColor = np.array([23, 241, 255])
 
-    # TILE FRENZY GAME
-    lowerColor = np.array([22, 140, 254])
-    upperColor = np.array([30, 214, 255])
+    # TILE FRENZY GAME (OLD)
+    # lowerColor = np.array([22, 140, 254])
+    # upperColor = np.array([30, 214, 255])
+
+    # TILE FRENZY (NEW)
+    lowerColor = np.array([6, 187, 96])
+    upperColor = np.array([18, 255, 255])
 
     # we convert to an hsv
     hsv = cv2.cvtColor(temp_frame, cv2.COLOR_BGR2HSV)
     # find the pixels in our photo that are in our color range
     mask = cv2.inRange(hsv, lowerColor, upperColor)
+
     # find all the 'contours' of only these selected pixels
     contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     # sort the contours by size (largest to smallest)
     contours = sorted(contours, key=cv2.contourArea, reverse=True)
 
     # for debugging this will draw the contours on our temp_frame
-    # cv2.drawContours(temp_frame, contours, -1, (0, 255, 0), 3)
+    # cv2.drawContours(temp_frame, contours, -1, (255, 0, 0), 3)
 
     # we make a list of all the bounding rectangles for each of our contours (sorted by size)
     rect_list = [cv2.boundingRect(contour) for contour in contours]
@@ -99,10 +104,10 @@ while running:
         # this calculation is not perfectly accurate and depending on the game it does change, so these two scalers fine tune the amount we move
         # usually our calculation moves us too far, so if we're overshooting increase the number, if we're undershooting decrease the number (1.5 is a good value for most games)
         # NOTE: these values work for me but I believe they are system dependant so you may need to tweak these quite a bit
-        sx = 1.4
-        sy = 1.4
-        # sx = 1.32
-        # sy = 1.447
+        sx = 1.5
+        # sy = 1.45
+        # sx = 1.5
+        sy = 1.447
 
         # note: for small `diff` we have `r * atan(diff / r) // s` to be approximately equal to `diff // s`.
         # thus if all targets are close together the following approximation may be used for increased speed
@@ -125,7 +130,7 @@ while running:
         mouse_event(MOUSEEVENTF_MOVE, -diffX, -diffY, 0, 0)
 
         # for debugging sometimes we want to display where we're aiming, this draws the rectangle around and a circle at the point we're trying to aim
-        # cv2.circle(temp_frame, (centerRectX, centerRectY), 5, (0, 0, 255), 3)
+        # cv2.circle(temp_frame, (centerRectX, centerRectY), 5, (0, 255, 0), 3)
         # temp_frame = cv2.rectangle(temp_frame, rect, (0, 255, 0), 3)
 
         # by clicking `q` we can kill the code at any point, this just makes sure we don't get stuck in our loop
@@ -136,7 +141,8 @@ while running:
     time.sleep(0.1) # works for box frenzy
 
     # for debugging this will display the image we processed and what we were aiming at (so long as you uncomment that code above)
-    # cv2.imshow("Debugging Image Window", temp_frame)
-    # cv2.waitKey(1000)
+    # cv2.imwrite(f"./debugging/where to shoot {time.time()}.jpg", temp_frame)
+    # cv2.waitKey(1500)
     # running = False
+
     

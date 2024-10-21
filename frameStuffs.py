@@ -10,6 +10,7 @@ class Frame:
         if not all([self.top, self.right, self.bottom, self.left]):
             self.getUserBoundary()
 
+        print(f'Frame({self.top}, {self.right}, {self.bottom}, {self.left})')
         self.boundary = {'top': self.top, 'left': self.left, 'width': abs(self.left - self.right), 'height': abs(self.top - self.bottom)}
         self.sct = mss()
 

@@ -1,7 +1,7 @@
 import cv2
 
 # read image
-image = cv2.imread("tilefrenzy.png")
+image = cv2.imread("new tile frenzy.png")
 image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
 
